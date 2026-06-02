@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cat or Dog | Inference Engine</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <main class="container">
+        <header class="header">
+            <h1>Cat or Dog?</h1>
+            <p>Upload an image to test the ResNet18 inference engine.</p>
+        </header>
+
+        <section class="upload-section">
+            <div id="drop-zone" class="drop-zone">
+                <div class="drop-zone-content">
+                    <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <span class="drop-zone-text">Drag & Drop your image here</span>
+                    <span class="drop-zone-subtext">or click to browse</span>
+                </div>
+                <input type="file" id="file-input" accept="image/jpeg, image/png, image/gif, image/webp" hidden>
+            </div>
+            <div id="error-message" class="error-message hidden"></div>
+        </section>
+
+        <section id="loading-section" class="loading-section hidden">
+            <div class="spinner"></div>
+            <p>Analyzing image...</p>
+        </section>
+
+        <section id="results-section" class="results-section hidden">
+            <div class="preview-container">
+                <img id="image-preview" src="" alt="Uploaded image preview">
+            </div>
+            
+            <div class="prediction-card">
+                <h2 class="prediction-title">Prediction</h2>
+                <div id="winner-label" class="winner-label">--</div>
+                
+                <div class="confidence-container">
+                    <div class="confidence-row">
+                        <div class="confidence-header">
+                            <span class="class-name">Cat</span>
+                            <span id="cat-score" class="score-text">0%</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div id="cat-progress" class="progress-bar fill-cat"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="confidence-row">
+                        <div class="confidence-header">
+                            <span class="class-name">Dog</span>
+                            <span id="dog-score" class="score-text">0%</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div id="dog-progress" class="progress-bar fill-dog"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button id="reset-button" class="btn-primary">Test Another Image</button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Main Script -->
+    <script src="/static/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,239 @@
+/* Minimalist Blocky Theme */
+:root {
+    --bg-main: #ffffff;
+    --bg-card: #ffffff;
+    --border-color: #000000;
+    --text-primary: #000000;
+    --text-secondary: #555555;
+    
+    --primary-color: #000000;
+    --primary-hover: #333333;
+    --cat-color: #ff3366;
+    --dog-color: #3366ff;
+    --error-color: #ff0000;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Space Mono', monospace;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+.container {
+    width: 100%;
+    max-width: 600px;
+    padding: 2rem;
+}
+
+/* Header */
+.header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 1rem;
+}
+
+.header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: -1px;
+    margin-bottom: 0.5rem;
+}
+
+.header p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* Drop Zone */
+.drop-zone {
+    background: var(--bg-card);
+    border: 2px dashed var(--border-color);
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.drop-zone:hover, .drop-zone.dragover {
+    background: #f0f0f0;
+    border-style: solid;
+}
+
+.upload-icon {
+    width: 48px;
+    height: 48px;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.drop-zone-text {
+    display: block;
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.drop-zone-subtext {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.error-message {
+    color: var(--error-color);
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    border: 2px solid var(--error-color);
+    padding: 0.5rem;
+}
+
+/* Loading Section */
+.loading-section {
+    text-align: center;
+    padding: 3rem 0;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #eeeeee;
+    border-top-color: var(--primary-color);
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-section p {
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+/* Results Section */
+.results-section {
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.preview-container {
+    width: 100%;
+    height: 300px;
+    border: 2px solid var(--border-color);
+    margin-bottom: 1.5rem;
+    background: #f9f9f9;
+}
+
+#image-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.prediction-card {
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    padding: 2rem;
+    text-align: center;
+}
+
+.prediction-title {
+    font-size: 1rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 0.5rem;
+    display: inline-block;
+}
+
+.winner-label {
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+    letter-spacing: -2px;
+}
+
+.winner-cat { color: var(--cat-color); }
+.winner-dog { color: var(--dog-color); }
+
+/* Confidence Bars */
+.confidence-container {
+    margin-bottom: 2rem;
+    text-align: left;
+}
+
+.confidence-row {
+    margin-bottom: 1.5rem;
+}
+
+.confidence-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.progress-bar-bg {
+    width: 100%;
+    height: 12px;
+    background: #eeeeee;
+    border: 2px solid var(--border-color);
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    transition: width 0.5s ease-out;
+}
+
+.fill-cat { background: var(--cat-color); }
+.fill-dog { background: var(--dog-color); }
+
+/* Button */
+.btn-primary {
+    width: 100%;
+    padding: 1rem;
+    background: var(--primary-color);
+    color: #ffffff;
+    border: 2px solid var(--border-color);
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.btn-primary:hover {
+    background: var(--bg-card);
+    color: var(--primary-color);
+}
+
+/* Utilities */
+.hidden {
+    display: none !important;
+}
