@@ -178,6 +178,13 @@ body {
 
 .winner-cat { color: var(--cat-color); }
 .winner-dog { color: var(--dog-color); }
+.winner-none { color: var(--text-secondary); }
+.winner-both { color: #8b5cf6; }
+.winner-resembles {
+    font-size: 1.8rem;
+    font-style: italic;
+    letter-spacing: 0;
+}
 
 /* Confidence Bars */
 .confidence-container {

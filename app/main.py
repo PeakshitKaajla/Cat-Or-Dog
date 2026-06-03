@@ -23,7 +23,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from app.model_utils import CLASS_LABELS, load_model, preprocess_image
+from app.model_utils import CLASS_LABELS, load_model, load_gatekeeper, screen_image, preprocess_image
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -48,7 +48,7 @@ class HealthResponse(BaseModel):
 
 class PredictionResponse(BaseModel):
     """Schema returned by the /predict endpoint."""
-    label: str = Field(..., examples=["cat", "dog"])
+    label: str = Field(..., examples=["cat", "dog", "none"])
     confidence: float = Field(
         ..., ge=0.0, le=1.0,
         description="Softmax probability of the predicted class.",
@@ -67,26 +67,35 @@ class ErrorResponse(BaseModel):
 # Application state
 # ---------------------------------------------------------------------------
 _model: nn.Module | None = None
+_gatekeeper: nn.Module | None = None
 _device: torch.device = torch.device("cpu")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Load the model once at startup; clean up on shutdown."""
-    global _model, _device
+    """Load models once at startup; clean up on shutdown."""
+    global _model, _gatekeeper, _device
     _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     try:
         _model = load_model(device=_device)
-        logger.info("Model loaded successfully on %s.", _device)
+        logger.info("Binary classifier loaded successfully on %s.", _device)
     except FileNotFoundError as exc:
         logger.error("Model loading failed: %s", exc)
         _model = None  # the app stays up but /predict will 503
 
+    try:
+        _gatekeeper = load_gatekeeper(device=_device)
+        logger.info("ImageNet gatekeeper loaded successfully on %s.", _device)
+    except Exception as exc:
+        logger.error("Gatekeeper loading failed: %s", exc)
+        _gatekeeper = None
+
     yield  # ── app is running ──
 
     _model = None
-    logger.info("Shutdown complete – model reference released.")
+    _gatekeeper = None
+    logger.info("Shutdown complete – model references released.")
 
 
 # ---------------------------------------------------------------------------
@@ -198,19 +207,38 @@ async def predict(file: UploadFile = File(..., description="Image to classify"))
             detail=f"Could not process image: {exc}",
         )
 
+    # ── Gatekeeper: what does this image contain? ──
+    screening = "unknown"
+    if _gatekeeper is not None:
+        screening = screen_image(tensor, _gatekeeper)
+
+        if screening == "both":
+            return PredictionResponse(
+                label="both",
+                confidence=1.0,
+                class_probabilities={label: 0.5 for label in CLASS_LABELS},
+            )
+
     # ── Inference ──
     with torch.no_grad():
         logits = _model(tensor)                         # (1, NUM_CLASSES)
         probs  = torch.softmax(logits, dim=1)[0]        # (NUM_CLASSES,)
 
     predicted_idx = int(probs.argmax())
+    top_confidence = float(probs[predicted_idx])
     class_probs = {
         label: round(float(probs[i]), 4)
         for i, label in enumerate(CLASS_LABELS)
     }
 
+    # If gatekeeper says it's not a real cat/dog, return as a fun "resembles" result
+    if screening == "none":
+        predicted_label = f"resembles-{CLASS_LABELS[predicted_idx]}"
+    else:
+        predicted_label = CLASS_LABELS[predicted_idx]
+
     return PredictionResponse(
-        label=CLASS_LABELS[predicted_idx],
-        confidence=round(float(probs[predicted_idx]), 4),
+        label=predicted_label,
+        confidence=round(top_confidence, 4),
         class_probabilities=class_probs,
     )

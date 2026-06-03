@@ -99,8 +99,17 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsSection.classList.remove('hidden');
 
         // Winner Text
-        winnerLabel.textContent = data.label;
-        winnerLabel.className = `winner-label winner-${data.label.toLowerCase()}`;
+        if (data.label === 'both') {
+            winnerLabel.textContent = 'Both!';
+            winnerLabel.className = 'winner-label winner-both';
+        } else if (data.label.startsWith('resembles-')) {
+            const animal = data.label.split('-')[1];
+            winnerLabel.textContent = `You resemble a ${animal}!`;
+            winnerLabel.className = `winner-label winner-resembles winner-${animal}`;
+        } else {
+            winnerLabel.textContent = data.label;
+            winnerLabel.className = `winner-label winner-${data.label.toLowerCase()}`;
+        }
 
         // Animate Bars
         // Small delay ensures CSS transitions trigger properly after display:none is removed

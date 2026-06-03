@@ -1,0 +1,26 @@
+# Byte-compiled / optimised
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PyTorch weights (large binary – keep out of VCS)
+weights/*.pth
+
+# Dataset (large – keep out of VCS)
+data/
+
+# Docker
+.dockerignore
