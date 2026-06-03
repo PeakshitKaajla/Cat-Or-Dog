@@ -1,157 +1,159 @@
-<div align="center">
+# Cat or Dog -- MLOps Inference Engine
 
-# 🐱 Cat or Dog? 🐶
-
-**A production-grade MLOps inference engine powered by PyTorch & FastAPI**
-
-Built to demonstrate end-to-end machine learning engineering — from model training to cloud deployment.
-
-[![Python](https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white)](https://python.org)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.12-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://docker.com)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+A production-grade, end-to-end machine learning system that classifies images as cats or dogs using a fine-tuned ResNet18 backbone. Built with a two-stage inference pipeline, a minimalist web frontend, and containerized deployment.
 
 ---
 
-[Features](#-features) · [Architecture](#-architecture) · [Quick Start](#-quick-start) · [API Reference](#-api-reference) · [Training](#-training-your-own-model) · [Deployment](#-cloud-deployment)
+## Table of Contents
 
-</div>
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Two-Stage Inference Pipeline](#two-stage-inference-pipeline)
+- [Model Details](#model-details)
+- [API Reference](#api-reference)
+- [Frontend](#frontend)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Prepare the Dataset](#prepare-the-dataset)
+  - [Train the Model](#train-the-model)
+  - [Run the Server](#run-the-server)
+- [Docker](#docker)
+- [Deployment](#deployment)
+- [Tech Stack](#tech-stack)
 
 ---
 
-## ✨ Features
+## Overview
 
-- **Transfer Learning** — Fine-tuned ResNet18 backbone with a frozen feature extractor. Only 1,026 of 11.1M parameters are trained, enabling CPU-only training in minutes.
-- **Two-Stage Inference Pipeline** — A full ImageNet gatekeeper pre-screens every image before the binary classifier runs, preventing misclassification of humans, objects, and other non-animal inputs.
-- **Fun Resemblance Mode** — Upload a photo of a person and the engine tells you whether you resemble a cat or a dog.
-- **Real-Time REST API** — Async FastAPI backend with Pydantic-validated schemas, structured error handling (400/503), and health probes.
-- **Drag & Drop Web UI** — Minimalist frontend with animated confidence bars, served directly by the API at the root URL.
-- **One-Command Cloud Deploy** — Dockerized with a Python deployment script for Hugging Face Spaces. No Git required.
+This project demonstrates a complete MLOps workflow for binary image classification:
+
+1. **Offline training** -- Fine-tune a pre-trained ResNet18 on the Microsoft PetImages dataset with frozen base layers, reducing trainable parameters from 11.1M to 1,026.
+2. **Production inference** -- Serve predictions through an async FastAPI backend with structured Pydantic response schemas, input validation, and error handling.
+3. **Out-of-distribution detection** -- A gatekeeper model (full ImageNet ResNet18) pre-screens every image to reject inputs that are not cats or dogs, and detects when both animals are present.
+4. **Resemblance mode** -- When a non-cat/dog image is uploaded (e.g., a person), the system runs the classifier anyway and returns a fun "You resemble a..." result.
+5. **Web interface** -- A minimalist drag-and-drop frontend with animated confidence bars, served directly by the API.
+6. **Containerized deployment** -- Dockerized for one-command deployment to Hugging Face Spaces or Google Cloud Run.
 
 ---
 
-## 🏗 Architecture
+## Architecture
 
 ```
-                    ┌──────────────────────────────────┐
-                    │          Web Frontend             │
-                    │   (HTML / CSS / JavaScript)       │
-                    └──────────────┬───────────────────┘
-                                   │  POST /predict
-                                   ▼
-                    ┌──────────────────────────────────┐
-                    │        FastAPI Server             │
-                    │   (Pydantic schemas, async I/O)   │
-                    └──────────────┬───────────────────┘
-                                   │
-                    ┌──────────────▼───────────────────┐
-                    │     Stage 1: ImageNet Gatekeeper  │
-                    │  Full ResNet18 (1000 classes)     │
-                    │                                    │
-                    │  Top-5 has cat breeds? dog breeds? │
-                    │  ┌─────┬──────┬────────┐          │
-                    │  │ cat │ dog  │ both   │ none     │
-                    │  └──┬──┴──┬───┴───┬────┘──┬──     │
-                    └─────┼─────┼───────┼───────┼──────┘
-                          │     │       │       │
-                          ▼     ▼       │       ▼
-                    ┌─────────────────┐ │  Resemblance
-                    │ Stage 2: Binary │ │     Mode
-                    │   Classifier    │ │  "You resemble
-                    │ ResNet18 (2-cls)│ │    a dog!"
-                    │ Fine-tuned head │ │
-                    └────────┬────────┘ │
-                             │          │
-                             ▼          ▼
-                    ┌──────────────────────────────────┐
-                    │    JSON Response                  │
-                    │  { label, confidence,             │
-                    │    class_probabilities }          │
-                    └──────────────────────────────────┘
+                         +------------------+
+                         |   Web Frontend   |
+                         |  (HTML/JS/CSS)   |
+                         +--------+---------+
+                                  |
+                            POST /predict
+                                  |
+                         +--------v---------+
+                         |   FastAPI Server  |
+                         |   (app/main.py)   |
+                         +--------+---------+
+                                  |
+                    +-------------+-------------+
+                    |                           |
+           +--------v---------+       +--------v---------+
+           |    Gatekeeper     |       |  Binary Classifier|
+           | (ImageNet 1000)   |       |  (Fine-tuned FC)  |
+           +--------+---------+       +--------+---------+
+                    |                           |
+              Screens image              Cat / Dog / Both
+           (cat / dog / both /           / Resembles-X
+               none)
 ```
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 Cat-Or-Dog/
-├── app/
-│   ├── __init__.py
-│   ├── main.py              # FastAPI application, endpoints, lifespan
-│   ├── model_utils.py       # Model loaders, gatekeeper, preprocessing
-│   └── static/
-│       ├── index.html        # Drag & drop web interface
-│       ├── style.css         # Minimalist dark/light theme
-│       └── script.js         # Client-side upload & animation logic
-├── model/
-│   ├── __init__.py
-│   ├── train.py              # Fine-tuning pipeline with validation
-│   └── prepare_data.py       # Dataset splitting & organization
-├── weights/
-│   └── baseline_model.pth    # Trained model checkpoint
-├── Dockerfile                # Production container (HF Spaces ready)
-├── deploy.py                 # One-click Hugging Face deployment
-├── requirements.txt          # Pinned dependencies
-├── run_server.bat            # Windows one-click launcher
-└── .gitignore
+|
+|-- app/
+|   |-- __init__.py
+|   |-- main.py              # FastAPI application, endpoints, lifespan
+|   |-- model_utils.py       # Model loaders, gatekeeper, preprocessing
+|   |-- static/
+|       |-- index.html        # Web frontend
+|       |-- style.css         # Minimalist dark/light theme
+|       |-- script.js         # Drag-and-drop, fetch, UI animations
+|
+|-- model/
+|   |-- __init__.py
+|   |-- prepare_data.py      # Dataset splitting (PetImages / Kaggle)
+|   |-- train.py             # Fine-tuning loop with validation
+|
+|-- weights/
+|   |-- baseline_model.pth   # Trained model weights (git-ignored)
+|
+|-- data/                    # Train/val splits (git-ignored)
+|   |-- train/
+|   |   |-- cat/
+|   |   |-- dog/
+|   |-- val/
+|       |-- cat/
+|       |-- dog/
+|
+|-- Dockerfile               # Production container image
+|-- requirements.txt         # Pinned Python dependencies
+|-- deploy.py                # One-command Hugging Face uploader
+|-- run_server.bat           # Windows one-click launcher
+|-- .gitignore
+|-- .dockerignore
 ```
 
 ---
 
-## 🚀 Quick Start
+## Two-Stage Inference Pipeline
 
-### Prerequisites
+Every uploaded image passes through two models before a result is returned.
 
-- Python 3.10+
-- pip
+### Stage 1: ImageNet Gatekeeper
 
-### 1. Clone & Install
+A full 1000-class ImageNet ResNet18 examines the image and checks whether any of its top-5 predictions fall within known cat or dog breed class indices (ImageNet classes 151-295).
 
-```bash
-git clone https://github.com/YOUR_USERNAME/Cat-Or-Dog.git
-cd Cat-Or-Dog
+| Gatekeeper Result | Behavior |
+|---|---|
+| Only cat breeds detected | Proceeds to Stage 2 |
+| Only dog breeds detected | Proceeds to Stage 2 |
+| Both cat and dog breeds detected | Returns `"both"` immediately |
+| Neither detected (person, object, etc.) | Proceeds to Stage 2 in **resemblance mode** |
 
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS/Linux
-source .venv/bin/activate
+### Stage 2: Binary Classifier
 
-pip install -r requirements.txt
-```
-
-### 2. Train the Model (Optional)
-
-A pre-trained checkpoint is included in `weights/`. To retrain from scratch:
-
-```bash
-# Prepare the dataset (expects PetImages/ or Kaggle flat layout)
-python -m model.prepare_data --source /path/to/PetImages
-
-# Fine-tune (runs on CPU in ~7 minutes)
-python -m model.train --epochs 5 --batch-size 32
-```
-
-### 3. Run the Server
-
-```bash
-uvicorn app.main:app --reload
-```
-
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
-
-> **Windows users:** Double-click `run_server.bat` to launch everything with one click.
+The fine-tuned ResNet18 head outputs softmax probabilities for `[cat, dog]`. If the gatekeeper flagged the image as out-of-distribution, the label is prefixed with `resembles-` to distinguish fun results from real classifications.
 
 ---
 
-## 📡 API Reference
+## Model Details
 
-### `GET /health`
+| Property | Value |
+|---|---|
+| Architecture | ResNet18 |
+| Pre-trained Weights | ImageNet1K V1 |
+| Training Strategy | Transfer learning -- base layers frozen |
+| Total Parameters | 11,177,538 |
+| Trainable Parameters | 1,026 (final FC layer only) |
+| Output Classes | 2 (cat, dog) |
+| Training Dataset | Microsoft PetImages (~20,000 train, ~5,000 val) |
+| Validation Accuracy | 96.96% (1 epoch) |
+| Loss Function | CrossEntropyLoss |
+| Optimizer | Adam (lr=0.001) |
 
-Liveness / readiness probe.
+The frozen-base approach reduces trainable parameters by 99.99%, enabling training on CPU in under 10 minutes and keeping inference lightweight for free-tier cloud deployments.
 
+---
+
+## API Reference
+
+### GET /health
+
+Liveness and readiness probe.
+
+**Response (200):**
 ```json
 {
   "status": "healthy",
@@ -159,137 +161,187 @@ Liveness / readiness probe.
 }
 ```
 
-### `POST /predict`
+### POST /predict
 
-Upload an image to classify.
+Classify an uploaded image.
 
-```bash
-curl -X POST -F "file=@cat.jpg" http://localhost:8000/predict
-```
+**Request:** `multipart/form-data` with a `file` field containing a JPEG, PNG, GIF, BMP, TIFF, or WebP image.
 
-**Response:**
-
+**Response (200):**
 ```json
 {
-  "label": "cat",
+  "label": "dog",
   "confidence": 0.9782,
   "class_probabilities": {
-    "cat": 0.9782,
-    "dog": 0.0218
+    "cat": 0.0218,
+    "dog": 0.9782
   }
 }
 ```
 
-**Possible `label` values:**
+**Possible label values:**
 
 | Label | Meaning |
-|-------|---------|
-| `cat` | Image is a cat |
-| `dog` | Image is a dog |
-| `both` | Image contains both a cat and a dog |
-| `resembles-cat` | Not a cat/dog, but resembles a cat (fun mode) |
-| `resembles-dog` | Not a cat/dog, but resembles a dog (fun mode) |
+|---|---|
+| `cat` | Image classified as a cat |
+| `dog` | Image classified as a dog |
+| `both` | Gatekeeper detected both animals in the image |
+| `resembles-cat` | Not a real cat/dog, but the model leans cat |
+| `resembles-dog` | Not a real cat/dog, but the model leans dog |
 
-**Error codes:** `400` (bad file type / corrupt image), `503` (model not loaded)
+**Error responses:**
 
-Full interactive docs available at [http://localhost:8000/docs](http://localhost:8000/docs).
+| Code | Condition |
+|---|---|
+| 400 | Unsupported file type or corrupt/unreadable image |
+| 503 | Model weights were not found at server startup |
+
+### GET /
+
+Serves the web frontend (`index.html`).
+
+### Interactive Docs
+
+FastAPI auto-generates interactive API documentation at `/docs` (Swagger UI) and `/redoc` (ReDoc).
 
 ---
 
-## 🧠 Training Your Own Model
+## Frontend
 
-The training pipeline uses **transfer learning** on a ResNet18 backbone pre-trained on ImageNet.
+The web interface is a self-contained single-page application built with vanilla HTML, CSS, and JavaScript. No build step or framework required.
 
-### Strategy
+**Features:**
+- Drag-and-drop or click-to-browse file upload
+- Instant local image preview via the FileReader API
+- Animated confidence progress bars for cat and dog probabilities
+- Distinct visual states for each result type (cat, dog, both, resemblance)
+- Fully responsive layout
 
-| Parameter | Value |
-|---|---|
-| Architecture | ResNet18 |
-| Pre-trained weights | ImageNet1K_V1 |
-| Frozen layers | All convolutional blocks |
-| Trainable layers | Final FC head only |
-| Trainable parameters | 1,026 / 11,177,538 (0.01%) |
-| Optimizer | Adam (lr=1e-3) |
-| Loss function | CrossEntropyLoss |
-| Data augmentation | RandomCrop, RandomHorizontalFlip |
+The frontend is served directly by FastAPI from the `app/static/` directory.
 
-### Results (1 epoch, CPU)
+---
 
-| Metric | Score |
-|---|---|
-| Training accuracy | 95.23% |
-| Validation accuracy | **96.96%** |
-| Training time | ~7 minutes |
+## Getting Started
 
-### CLI Options
+### Prerequisites
+
+- Python 3.10 or higher
+- pip
+
+### Installation
 
 ```bash
-python -m model.train --help
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/Cat-Or-Dog.git
+cd Cat-Or-Dog
 
-  --epochs       Number of epochs (default: 5)
-  --batch-size   Batch size (default: 32)
-  --lr           Learning rate (default: 0.001)
+# Create and activate a virtual environment
+python -m venv .venv
+
+# Windows
+.venv\Scripts\activate
+
+# macOS / Linux
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### Prepare the Dataset
+
+Download the [Microsoft PetImages](https://www.microsoft.com/en-us/download/details.aspx?id=54765) dataset, then run the data preparation script to split it into training and validation sets:
+
+```bash
+python -m model.prepare_data --source /path/to/PetImages
+```
+
+This creates `data/train/` and `data/val/` directories with `cat/` and `dog/` subdirectories.
+
+### Train the Model
+
+```bash
+# Default: 5 epochs, lr=0.001, batch size 32
+python -m model.train
+
+# Custom configuration
+python -m model.train --epochs 10 --lr 0.0005 --batch-size 64
+```
+
+The script automatically:
+- Scans for and removes corrupt images
+- Freezes the ResNet18 base layers
+- Tracks validation accuracy per epoch
+- Saves the best checkpoint to `weights/baseline_model.pth`
+
+### Run the Server
+
+```bash
+# Development mode with hot-reload
+uvicorn app.main:app --reload
+```
+
+On Windows, you can also double-click `run_server.bat` to start the server and open the browser automatically.
+
+Open `http://127.0.0.1:8000` in your browser to use the web interface, or `http://127.0.0.1:8000/docs` for the interactive API documentation.
+
+**Quick test with curl:**
+```bash
+curl http://localhost:8000/health
+
+curl -X POST -F "file=@path/to/image.jpg" http://localhost:8000/predict
 ```
 
 ---
 
-## ☁️ Cloud Deployment
-
-### Hugging Face Spaces (Recommended, Free)
-
-The `Dockerfile` is pre-configured for Hugging Face Spaces (port 7860, non-root user).
-
-**Option A — No Git required:**
+## Docker
 
 ```bash
-pip install huggingface_hub
+# Build the image
+docker build -t cat-or-dog .
+
+# Run the container
+docker run -p 8000:7860 cat-or-dog
+```
+
+The Dockerfile uses `python:3.10-slim`, layer-cached dependency installation, and runs under a non-root user for security compliance.
+
+---
+
+## Deployment
+
+### Hugging Face Spaces (Free)
+
+The included `deploy.py` script uploads the project directly to a Hugging Face Docker Space without requiring Git:
+
+```bash
 python deploy.py
 ```
 
-The script prompts for your HF token and Space ID, then uploads everything automatically.
+It will prompt for your Hugging Face access token and Space repository ID, then upload only the necessary files (`app/`, `model/`, `weights/`, `Dockerfile`, `requirements.txt`).
 
-**Option B — Via Git:**
-
-```bash
-git remote add hf https://huggingface.co/spaces/YOUR_USERNAME/cat-or-dog
-git push hf main
-```
-
-### Docker (Self-hosted)
+### Google Cloud Run
 
 ```bash
-docker build -t cat-or-dog .
-docker run -p 8000:8000 -e PORT=8000 cat-or-dog
+gcloud run deploy cat-or-dog-api \
+  --source . \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --memory 2Gi \
+  --cpu 1
 ```
+
+The Dockerfile reads the `$PORT` environment variable at runtime, so it is compatible with any container platform that injects a dynamic port.
 
 ---
 
-## 🛡 Out-of-Distribution Safety
-
-A common failure mode with binary classifiers is that they **force a prediction on any input** — even images that aren't cats or dogs. This project solves it with a **two-stage gatekeeper architecture**:
-
-1. **Stage 1** loads the full 1000-class ImageNet ResNet18 and checks if the top-5 predictions contain cat or dog breed classes (ImageNet indices 151–295).
-2. **Stage 2** (the fine-tuned binary head) only runs if Stage 1 confirms the image is relevant.
-3. If the image is **not** a cat or dog (e.g., a person, car, or food), it enters **Resemblance Mode** — the binary classifier still runs, but the result is framed as a fun *"You resemble a cat!"* instead of a definitive classification.
-
-This prevents embarrassing misclassifications while adding a playful feature.
-
----
-
-## 🛠 Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | Language | Python 3.10 |
-| ML Framework | PyTorch, Torchvision |
-| API Framework | FastAPI, Pydantic, Uvicorn |
-| Frontend | Vanilla HTML, CSS, JavaScript |
+| Deep Learning | PyTorch, Torchvision, Pillow |
+| API Framework | FastAPI, Uvicorn, Pydantic |
+| Frontend | HTML, CSS (vanilla), JavaScript (vanilla) |
 | Containerization | Docker |
-| Cloud | Hugging Face Spaces |
-| Image Processing | Pillow |
-
----
-
-## 📄 License
-
-This project is open source and available under the [MIT License](LICENSE).
+| Deployment | Hugging Face Spaces, Google Cloud Run |
